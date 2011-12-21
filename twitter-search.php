@@ -6,7 +6,7 @@ Description: Used by millions, Twitter Search is quite possibly the best way in 
 Version: 0.0.0.0.0.0.1a
 Author: Mario Alvarez
 Author URI: http://dsafasd.com
-License: GPLv2 or later
+License: WTFPL :p
 */
 
 /**
