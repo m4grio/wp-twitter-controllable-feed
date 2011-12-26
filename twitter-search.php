@@ -9,6 +9,9 @@ Author URI: http://dsafasd.com
 License: WTFPL :p
 */
 
+define ('TWS_TABLENAME', 'tws_cache');
+
+
 /**
  * Initialize the plugin when the admin init runs 
  */
@@ -28,7 +31,7 @@ function tws_install ()
 
 	$tws_db_version = '1';
 
-	$table_name = $wpdb->prefix . "tws_cache";
+	$table_name = $wpdb->prefix . TWS_TABLENAME;
 	  
 	$sql = "CREATE TABLE " . $table_name . " (
 		`id_tws_cache` int(11) unsigned NOT NULL AUTO_INCREMENT PRIMARY KEY,
@@ -145,10 +148,10 @@ jQuery(document).ready(function() {
 	jQuery('#tws_tltype').change(function() {       
 
 		var value = jQuery('#tws_tltype option:selected').val();
-		var theDiv = jQuery('#DivBy' + value);
+		var theDiv = jQuery('#tws_' + value);
 	
 		theDiv.slideDown();
-		theDiv.siblings('[id^=DivBy]').slideUp();
+		theDiv.siblings('[id^=tws_]').slideUp();
 	});
 
 	jQuery('#tws_censor *').tooltip();
@@ -181,12 +184,12 @@ jQuery(document).ready(function() {
 				<label>
 					<select name="tws_tltype" id="tws_tltype">
 						<option disabled="disabled">-- Elige el tipo de Timeline --</option>
-						<option value="1" ' . ($timelineType == '1' ? 'selected="selected" ' : '') . '>Consulta</option>
-						<option value="2" ' . ($timelineType == '2' ? 'selected="selected" ' : '') . '>Usuario Twitter</option>
+						<option value="search" ' . ($timelineType == 'search' ? 'selected="selected" ' : '') . '>Consulta</option>
+						<option value="user-timeline" ' . ($timelineType == 'user-timeline' ? 'selected="selected" ' : '') . '>Usuario Twitter</option>
 					</select>
 				</label>
 			</p>
-		<div id="DivBy1" ' . ($timelineType == '1' ? '' : 'class="hidden"') . '>
+		<div id="tws_search" ' . ($timelineType == 'search' ? '' : 'class="hidden"') . '>
 			<p class="meta_options">
 				<label for="tws_search">Escribe el patrón de busqueda:<br /><input type="text" id="tws_search" name="tws_search" value="' . $searchMeta . '"></label>
 			</p>
@@ -194,7 +197,7 @@ jQuery(document).ready(function() {
 				<label>Ingresa las palabras que deseas censurar<br /><textarea id="tws_censor" name="tws_censor" cols="28" title="' . get_option('tws_defaultbannedwords') . '">' . $censorMeta . '</textarea>
 			</p>
 		</div>
-		<div id="DivBy2" ' . ($timelineType == '2' ? '' : 'class="hidden"') . '>
+		<div id="tws_user-timeline" ' . ($timelineType == 'user-timeline' ? '' : 'class="hidden"') . '>
 			<p class="meta_options">
 				<label>Usuario de Twitter:<br />
 					<input type="text" name="tws_twuser" id="tws_twuser" value="' . $twUser . '">
@@ -252,6 +255,9 @@ if ( ! function_exists('get_twitter_search'))
 	function get_twitter_search ($limit=NULL)
 	{
 
+		/**
+		 * This plugin its supposed to work only on single posts
+		 */
 		if ( ! is_single())
 			return;
 
@@ -303,19 +309,119 @@ if ( ! function_exists('get_twitter_search'))
 		$TW->user_agent = 'magrio.ag@gmail.com';
 
 
+		/**
+		 * Determine type of twitter query
+		 */
+		switch ($configs['type'])
+		{
+			
+			/**
+			 * Search
+			 */
+			case 'search':
 
-		if (is_array($configs['search']))
-			foreach ($configs['search'] as $key => $term)
-				$TW->contains($term);
+
+				if ( ! $configs['search'])
+					return;
 
 
-		else if (is_string($configs['search']))
-			$TW->contains($configs['search']);
+				/**
+				 * Prepare the twitter query!
+				 */
+				if (is_array($configs['search']))
+					foreach ($configs['search'] as $key => $term)
+						$TW->contains($term);
+
+				else if (is_string($configs['search']))
+					$TW->contains($configs['search']);
+
+				break;
+
+
+			/**
+			 * User timelina
+			 */
+			case 'user-timeline':
+
+				
+				if ( ! $configs['user'])
+					return;
+
+
+				/**
+				 * Prepare the twitter query!
+				 */
+				$TW->from($configs['user']);
+
+				break;
+
+		}
+
 
 		/**
 		 * Lets go!
 		 */
 		$tuits = $TW->results();
+
+
+		/**
+		 * Tuits shall go to DB!
+		 */
+		if (count($tuits) > 0)
+		{
+
+			global $wpdb;
+			
+
+			switch ($configs['type'])
+			{
+
+				case 'search':
+
+					foreach ($tuits as $tuit)
+						$_row[] = "('$tuit->id_str', '" . base64_encode(json_encode($tuit)) . "', '" . mysql_real_escape_string($tuit->text) . "', '" . mysql_real_escape_string(implode(',', $configs['search'])) . "')";
+
+					$_query = "INSERT IGNORE INTO " . $wpdb->prefix . TWS_TABLENAME . "
+						(`id_tws_cache`, `data`, `text`, `search_query`) VALUES 
+						" . implode(", \n", $_row) . "
+						ON DUPLICATE KEY UPDATE
+							`data` =         VALUES(`data`),
+							`text` =         VALUES(`text`),
+							`search_query` = VALUES(`search_query`),
+							`from_user` =    NULL";
+
+					break;
+
+
+				case 'user-timeline':
+
+					foreach ($tuits as $tuit)
+						$_row[] = "('$tuit->id_str', '" . base64_encode(json_encode($tuit)) . "', '" . mysql_real_escape_string($tuit->text) . "', '" . $configs['user'] . "')";
+
+					$_query = "INSERT IGNORE INTO " . $wpdb->prefix . TWS_TABLENAME . "
+						(`id_tws_cache`, `data`, `text`, `from_user`) VALUES 
+						" . implode(", \n", $_row) . "
+						ON DUPLICATE KEY UPDATE
+							`data` =         VALUES(`data`),
+							`text` =         VALUES(`text`),
+							`search_query` = NULL,
+							`from_user` =    VALUES(`from_user`)";
+					
+					break;
+
+			}
+
+
+
+
+			// die ($_query);
+
+			/**
+			 * Silent run
+			 */
+			$wpdb->query($_query);
+
+		}
 
 
 		/**
