@@ -197,11 +197,6 @@ jQuery(document).ready(function() {
 				<input type="text" id="tws_search" name="tws_search" value="' . $searchMeta . '">
 			</p>
 
-			<p class="meta_options">
-				<label>Ingresa las palabras que deseas censurar<br /></label>
-				<textarea id="tws_censor" name="tws_censor" cols="28" title="' . get_option('tws_defaultbannedwords') . '">' . $censorMeta . '</textarea>
-			</p>
-
 		</div>
 		
 		<div id="tws_user-timeline" ' . ($timelineType == 'user-timeline' ? '' : 'class="hidden"') . '>
@@ -220,6 +215,11 @@ jQuery(document).ready(function() {
 			</p>
 
 		</div>
+
+		<p class="meta_options">
+			<label>Ingresa las palabras que deseas censurar<br /></label>
+			<textarea id="tws_censor" name="tws_censor" cols="28" title="' . get_option('tws_defaultbannedwords') . '">' . $censorMeta . '</textarea>
+		</p>
 		
 	';
 }
@@ -474,8 +474,21 @@ if ( ! function_exists('get_twitter_search'))
 		 */
 		if (count($tuits) > 0)
 		{
-			foreach ($tuits as &$tuit)
+
+
+			foreach ($tuits as $key => &$tuit)
 			{
+
+				/**
+				 * Banned words
+				 */
+				foreach ($configs['banned'] as $badword)
+					if (preg_match('/' . strtolower($badword) . '/', strtolower($tuit->text)))
+					{
+						$_junk[] = $tuit;
+						unset($tuits[$key]);
+					}
+
 
 				/**
 				 * Links
@@ -497,6 +510,14 @@ if ( ! function_exists('get_twitter_search'))
 				// $tuit->text = ereg_replace("[[:alpha:]]+://[^<>[:space:]]+[[:alnum:]/]", "<a href=\"\\0\" rel=\"nofollow\">\\0</a>", $tuit->text);
 			}
 		}
+
+
+
+		// if (isset($_junk) && count($_junk) > 0)
+		// {
+		// 	echo 'junk';
+		// 	return $_junk;
+		// }
 
 
 		return $tuits;
