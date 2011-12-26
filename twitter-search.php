@@ -175,42 +175,50 @@ jQuery(document).ready(function() {
 	";
 	echo '
 		<p class="meta_options">
-		<label for="tws_enabled">Activar / Desactivar <br /><select name="tws_enabled" id="tws_enabled">
-		<option value="0" ' . (is_null($twfEnabled) || $twfEnabled == '0' ? 'selected="selected" ' : '') . '>Desactivado</option>
-		<option value="1" ' . ($twfEnabled == '1' ? 'selected="selected" ' : '') . '>Activado</option>
-		</select></label>
+			<label for="tws_enabled">Activar / Desactivar</label><br />
+			<select name="tws_enabled" id="tws_enabled">
+				<option value="0" ' . (is_null($twfEnabled) || $twfEnabled == '0' ? 'selected="selected" ' : '') . '>Desactivado</option>
+				<option value="1" ' . ($twfEnabled == '1' ? 'selected="selected" ' : '') . '>Activado</option>
+			</select>
 		</p>
+
 		<p class="meta_options">
-				<label>
-					<select name="tws_tltype" id="tws_tltype">
-						<option disabled="disabled">-- Elige el tipo de Timeline --</option>
-						<option value="search" ' . ($timelineType == 'search' ? 'selected="selected" ' : '') . '>Consulta</option>
-						<option value="user-timeline" ' . ($timelineType == 'user-timeline' ? 'selected="selected" ' : '') . '>Usuario Twitter</option>
-					</select>
-				</label>
-			</p>
+			<select name="tws_tltype" id="tws_tltype">
+				<option disabled="disabled">-- Elige el tipo de Timeline --</option>
+				<option value="search" ' . ($timelineType == 'search' ? 'selected="selected" ' : '') . '>Consulta</option>
+				<option value="user-timeline" ' . ($timelineType == 'user-timeline' ? 'selected="selected" ' : '') . '>Usuario Twitter</option>
+			</select>
+		</p>
+
 		<div id="tws_search" ' . ($timelineType == 'search' ? '' : 'class="hidden"') . '>
+
 			<p class="meta_options">
-				<label for="tws_search">Escribe el patrón de busqueda:<br /><input type="text" id="tws_search" name="tws_search" value="' . $searchMeta . '"></label>
+				<label for="tws_search">Búsqueda:<br /></label>
+				<input type="text" id="tws_search" name="tws_search" value="' . $searchMeta . '">
 			</p>
+
 			<p class="meta_options">
-				<label>Ingresa las palabras que deseas censurar<br /><textarea id="tws_censor" name="tws_censor" cols="28" title="' . get_option('tws_defaultbannedwords') . '">' . $censorMeta . '</textarea>
+				<label>Ingresa las palabras que deseas censurar<br /></label>
+				<textarea id="tws_censor" name="tws_censor" cols="28" title="' . get_option('tws_defaultbannedwords') . '">' . $censorMeta . '</textarea>
 			</p>
+
 		</div>
+		
 		<div id="tws_user-timeline" ' . ($timelineType == 'user-timeline' ? '' : 'class="hidden"') . '>
 			<p class="meta_options">
-				<label>Usuario de Twitter:<br />
-					<input type="text" name="tws_twuser" id="tws_twuser" value="' . $twUser . '">
-				</label>
+				<label>Usuario de Twitter:</label><br />
+				<input type="text" name="tws_twuser" id="tws_twuser" value="' . $twUser . '">
+				
 				<br />
-				<label>Utilizar el usuario default <span>' . get_option('tws_defaulttwuser') . '</span><input type="checkbox" name="useDefaulUser" id="useDefaulUser" value="1" /><br />
-				</label>
+				<label>Utilizar el usuario default <span>' . get_option('tws_defaulttwuser') . '</span></label>
+				<input type="checkbox" name="useDefaulUser" id="useDefaulUser" value="1" /><br />
 			</p>
+
 			<p class="meta_options">
-				<label>Nombre de la lista a mostrar:<br />
-					<input type="text" name="tws_twulist" id="tws_twulist" value="' . $twUList . '">
-				</label>
+				<label>Búsqueda (opcional):</label><br />
+				<input type="text" name="tws_twulist" id="tws_twulist" value="' . $twUList . '">
 			</p>
+
 		</div>
 		
 	';
@@ -302,7 +310,7 @@ if ( ! function_exists('get_twitter_search'))
 
 
 		/**
-		 * Instancie
+		 * Instantiate
 		 */
 		require_once ('TwitterSearchClass.php');
 		$TW = new TwitterSearch();
@@ -310,7 +318,7 @@ if ( ! function_exists('get_twitter_search'))
 
 
 		/**
-		 * Determine type of twitter query
+		 * Determine type of twitter query to prepare the class
 		 */
 		switch ($configs['type'])
 		{
@@ -353,6 +361,24 @@ if ( ! function_exists('get_twitter_search'))
 				 */
 				$TW->from($configs['user']);
 
+
+				/**
+				 * Check for words to perform search over user timeline
+				 */
+				if ((bool) strlen($configs['list']))
+				{
+					
+					/**
+					 * Check for array
+					 */
+					if (strpos($configs['list'], ','))
+						foreach (preg_split('/[\s]*[,][\s]*/', $configs['list']) as $word)
+							$TW->contains($word);
+
+					else
+						$TW->contains($configs['list']);
+				}
+
 				break;
 
 		}
@@ -365,7 +391,7 @@ if ( ! function_exists('get_twitter_search'))
 
 
 		/**
-		 * Tuits shall go to DB!
+		 * Tuits shall go to DB before anythiing else happened!
 		 */
 		if (count($tuits) > 0)
 		{
@@ -412,8 +438,6 @@ if ( ! function_exists('get_twitter_search'))
 			}
 
 
-
-
 			// die ($_query);
 
 			/**
@@ -429,13 +453,30 @@ if ( ! function_exists('get_twitter_search'))
 		 */
 		if ((intval($TW->responseInfo['http_code']) == 420 && empty($tuits)) || empty($tuits))
 		{
-			die('cache!');
+
+			/**
+			 * Cache will be needed
+			 */
+			
+
+			switch ($configs['type'])
+			{
+
+				case 'search':
+					
+					break;
+			}
 		}
 
+
+		/**
+		 * Now, tuits shall be parsed, censored and so on
+		 */
 		if (count($tuits) > 0)
 		{
 			foreach ($tuits as &$tuit)
 			{
+
 				/**
 				 * Links
 				 */
