@@ -79,7 +79,7 @@ function tws_admin_init ()
  */
 function tws_add_option ()
 {
-	add_options_page('Opciones generales', 'Twitter Feed', 'manage_options', 'twitter_filter_options_menu', 'tws_optionsdo');
+	add_options_page('Opciones generales', 'Twitter Feed', 'manage_options', 'twitter_feed_options_menu', 'tws_optionsdo');
 }
 
 
@@ -90,23 +90,21 @@ function tws_optionsdo ()
 {
 	?>
 	<div class="wrap">
-		<h2>Twitter Filter</h2>
+		<h2>Twitter Feed global options</h2>
 	
 		<form action="options.php" method="POST">
 			
 			<?php settings_fields('tws_optiongrousp'); ?>
-			<?php $op = get_option('tws_defaultbannedwords'); ?>
-			<?php $twuname = get_option('tws_defaulttwuser'); ?>
 			<fieldset>
 				<p class="meta_options">
 					<label for="tws_defaulttwuser">Select the default Twitter username.<br />
-						<input type="text" name="tws_defaulttwuser" value="<?=$twuname?>">
+						<input type="text" name="tws_defaulttwuser" value="<?=get_option('tws_defaulttwuser')?>">
 					</label>
 				</p>
 				
 				<p class="meta_options">
 					<label for="tws_defaulbannedwords">Please, add the default banned keywords, you still can append more words in each post. Insert words comma separated.<br />
-						<textarea name="tws_defaultbannedwords" cols="70"><?php echo $op; ?></textarea>
+						<textarea name="tws_defaultbannedwords" cols="70"><?=get_option('tws_defaultbannedwords')?></textarea>
 					</label>
 				</p>
 
