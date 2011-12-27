@@ -61,7 +61,7 @@ function tws_install ()
 function tws_admin_init ()
 {
 	// box id, title, function to run, the page to display box on, where to display the box, and what priority to assign to the box display
-	add_meta_box('special-post', 'El feed de Twitter', 'tws_meta_box', 'post', 'side', 'default');
+	add_meta_box('tws_meta_box', 'Twitter Feed', 'tws_meta_box', 'post', 'side', 'default');
 	register_setting('tws_optiongrousp', 'tws_defaultbannedwords', 'wp_filter_nohtml_kses');
 	register_setting('tws_optiongrousp', 'tws_defaulttwuser', 'wp_filter_nohtml_kses');
 	register_setting('tws_optiongrousp', 'tws_defaultlang', 'wp_filter_nohtml_kses');
@@ -103,19 +103,19 @@ function tws_optionsdo ()
 				</p>
 				
 				<p class="meta_options">
-					<label for="tws_defaulbannedwords">Please, add the default banned keywords, you still can append more words in each post. Insert words comma separated.<br />
+					<label for="tws_defaulbannedwords">Default banned words, also you can append more words in each post. Insert words comma separated.<br />
 						<textarea name="tws_defaultbannedwords" cols="70"><?=get_option('tws_defaultbannedwords')?></textarea>
 					</label>
 				</p>
 
 				<p class="meta_options">
-					<label for="tws_defaultlang">Language: (ISO 639-1) code<br/>
+					<label for="tws_defaultlang">Language (ISO 639-1 code)<br/>
 						<input type="text" name="tws_defaultlang" value="<?=get_option('tws_defaultlang')?>" />
 					</label>
 				</p>
 
 				<p class="meta_options">
-					<label>Twitter requires an email to they be able to report abuses<br />
+					<label>Twitter requires an email to they be able to report abuses.<br />
 						<input type="text" name="tws_useragent" value="<?=get_option('tws_useragent')?>">
 					</label>
 				</p>
@@ -566,11 +566,15 @@ if ( ! function_exists('get_twitter_search'))
 
 			order by `date_add` desc
 
+			limit 100";
+
+			/*
 			" . ((isset($limit) && is_numeric($limit) && $limit > 0)
 				? "limit $limit" 
 				: NULL) . "
 
 			";
+			*/
 
 			unset ($tuits);	
 
