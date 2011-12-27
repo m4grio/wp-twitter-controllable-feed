@@ -152,7 +152,7 @@ class TwitterSearch {
     * @param int $language required
     * @return object
     */
-    function lang($language) {
+    function lang ($language) {
         $this->lang = $language;
         return $this;
     }

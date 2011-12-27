@@ -64,6 +64,7 @@ function tws_admin_init ()
 	add_meta_box('special-post', 'El feed de Twitter', 'tws_meta_box', 'post', 'side', 'default');
 	register_setting('tws_optiongrousp', 'tws_defaultbannedwords', 'wp_filter_nohtml_kses');
 	register_setting('tws_optiongrousp', 'tws_defaulttwuser', 'wp_filter_nohtml_kses');
+	register_setting('tws_optiongrousp', 'tws_defaultlang', 'wp_filter_nohtml_kses');
 
 	/**
 	 * Hook into save_post action - save our data at the same time the post is saved
@@ -95,6 +96,7 @@ function tws_optionsdo ()
 			<?php settings_fields('tws_optiongrousp'); ?>
 			<?php $op = get_option('tws_defaultbannedwords'); ?>
 			<?php $twuname = get_option('tws_defaulttwuser'); ?>
+			<?php $tw_lang = get_option('tws_defaultlang'); ?>
 			<fieldset>
 				<p class="meta_options">
 					<label for="tws_defaulttwuser">Select the default Twitter username.<br />
@@ -105,6 +107,12 @@ function tws_optionsdo ()
 				<p class="meta_options">
 					<label for="tws_defaulbannedwords">Please, add the default banned keywords, you still can append more words in each post. Insert words comma separated.<br />
 						<textarea name="tws_defaultbannedwords" cols="70"><?php echo $op; ?></textarea>
+					</label>
+				</p>
+
+				<p class="meta_options">
+					<label for="tws_defaultlang">Language: (ISO 639-1) code<br/>
+						<input type="text" name="tws_defaultlang" value="<?=$tw_lang?>" />
 					</label>
 				</p>
 				
@@ -301,6 +309,7 @@ if ( ! function_exists('get_twitter_search'))
 			'type' => get_post_meta($post_id, '_tws_tltype', TRUE),
 			'user' => get_post_meta($post_id, '_tws_twuser', TRUE),
 			'list' => get_post_meta($post_id, '_tws_twulist', TRUE),
+			'lang' => get_option('tws_defaultlang')
 		);
 
 
@@ -319,6 +328,13 @@ if ( ! function_exists('get_twitter_search'))
 		require_once ('TwitterSearchClass.php');
 		$TW = new TwitterSearch();
 		$TW->user_agent = 'magrio.ag@gmail.com';
+
+
+		/**
+		 * Language
+		 */
+		if (isset($configs['lang']))
+			$TW->lang($configs['lang']);
 
 
 		/**
@@ -454,8 +470,8 @@ if ( ! function_exists('get_twitter_search'))
 		/**
 		 * Check for request status or empty response to know if cache will be needed
 		 */
-		if (true)
-		// if (intval($TW->responseInfo['http_code']) == 420 || empty($tuits))
+		// if (true)
+		if (intval($TW->responseInfo['http_code']) == 420 || empty($tuits))
 		{
 
 			/**
@@ -553,7 +569,7 @@ if ( ! function_exists('get_twitter_search'))
 
 			unset ($tuits);	
 
-			
+
 			if (count($results = $wpdb->get_col($query)) > 0)
 			{
 				
