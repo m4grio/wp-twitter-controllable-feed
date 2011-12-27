@@ -263,6 +263,10 @@ if ( ! function_exists('get_twitter_search'))
 	function get_twitter_search ($limit=NULL)
 	{
 
+
+		global $wpdb;
+
+
 		/**
 		 * This plugin its supposed to work only on single posts
 		 */
@@ -373,7 +377,8 @@ if ( ! function_exists('get_twitter_search'))
 					 */
 					if (strpos($configs['list'], ','))
 						foreach (preg_split('/[\s]*[,][\s]*/', $configs['list']) as $word)
-							$TW->contains($word);
+							if ($word)
+								$TW->contains($word);
 
 					else
 						$TW->contains($configs['list']);
@@ -391,12 +396,10 @@ if ( ! function_exists('get_twitter_search'))
 
 
 		/**
-		 * Tuits shall go to DB before anythiing else happened!
+		 * If we have tuits, they shall go to DB
 		 */
-		if (count($tuits) > 0)
+		if (intval($TW->responseInfo['http_code']) == 200 && ! empty($tuits))
 		{
-
-			global $wpdb;
 			
 
 			switch ($configs['type'])
@@ -449,14 +452,27 @@ if ( ! function_exists('get_twitter_search'))
 
 
 		/**
-		 * Check for request status to know if cache will be needed
+		 * Check for request status or empty response to know if cache will be needed
 		 */
-		if ((intval($TW->responseInfo['http_code']) == 420 && empty($tuits)) || empty($tuits))
+		if (true)
+		// if (intval($TW->responseInfo['http_code']) == 420 || empty($tuits))
 		{
 
 			/**
 			 * Cache will be needed
 			 */
+
+
+			$query = "
+			
+			select
+				`data`
+
+			from
+				`" . $wpdb->prefix . "tws_cache`
+
+			where
+				";
 			
 
 			switch ($configs['type'])
@@ -464,9 +480,89 @@ if ( ! function_exists('get_twitter_search'))
 
 				case 'search':
 					
+
+					/**
+					 * Just in case...
+					 */
+					if (strpos($configs['search'], ','))
+						$configs['search'] = explode(',', $configs['search']);
+
+					/**
+					 * Prepare the DB query!
+					 */
+					if (is_array($configs['search']))
+					{
+						
+						foreach ($configs['search'] as $word)
+							$_like[] = "`search_query` like '%'" . mysql_real_escape_string($word) . '%';
+
+						$query .= implode(' or ', $_like);
+					}
+
+
+					else if (is_string($configs['search']))
+						$query .= "`search_query` like '%$configs[search]%";
+
+					break;
+
+
+				case 'user-timeline':
+
+					$query .= "`from_user` = '$configs[user]'";
+
+
+					/**
+					 * Check for words to perform search over user timeline
+					 */
+					if ((bool) strlen($configs['list']))
+					{
+						
+						/**
+						 * Check for array
+						 */
+						if (strpos($configs['list'], ','))
+						{
+							
+							foreach (preg_split('/[\s]*[,][\s]*/', $configs['list']) as $word)
+								if ($word)
+									$_like[] = PHP_EOL . "`text` like '%$word%'";
+
+							$query .= " and (" . implode(' or ', $_like) . ")";
+						}
+									
+
+						else
+							$query .= PHP_EOL . "and `text` like '%$configs[list]%'";
+					}
+					
 					break;
 			}
+
+
+			$query .= "
+
+			group by `id_tws_cache`
+
+			order by `date_add` desc
+
+			" . ((isset($limit) && is_numeric($limit) && $limit > 0)
+				? "limit $limit" 
+				: NULL) . "
+
+			";
+
+			unset ($tuits);	
+
+			
+			if (count($results = $wpdb->get_col($query)) > 0)
+			{
+				
+				foreach ($results as $row)
+					$tuits[] = json_decode(base64_decode($row));
+			}
 		}
+
+
 
 
 		/**
@@ -493,13 +589,13 @@ if ( ! function_exists('get_twitter_search'))
 				/**
 				 * Links
 				 */
-				$tuit->text = preg_replace('@(https?://([-\w\.]+)+(:\d+)?(/([\w/_\.]*(\?\S+)?)?)?)@', '<a href="$1" rel="nofollow">$1</a>', $tuit->text);
+				$tuit->text = preg_replace('@(https?://([-\w\.]+)+(:\d+)?(/([\w/_\.]*(\?\S+)?)?)?)@', '<a href="$1" rel="nofollow" target="_blank">$1</a>', $tuit->text);
 
 
 				/**
 				 * Mentions
 				 */
-				$tuit->text = preg_replace('/@([A-Za-z0-9_]+)/', '<a href="http://twitter.com/$1" rel="nofollow">@$1</a>', $tuit->text);
+				$tuit->text = preg_replace('/@([A-Za-z0-9_]+)/', '<a href="http://twitter.com/$1" rel="nofollow" target="_blank">@$1</a>', $tuit->text);
 
 
 				/**
@@ -520,6 +616,15 @@ if ( ! function_exists('get_twitter_search'))
 		// }
 
 
+		/**
+		 * To limit!
+		 */
+		if (isset($limit) && is_numeric($limit) && $limit > 0)
+			return array_slice($tuits, 0, $limit);
+
+		/**
+		 * To inifinite and beyond
+		 */
 		return $tuits;
 
 	}
