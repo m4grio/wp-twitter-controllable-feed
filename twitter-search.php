@@ -65,6 +65,7 @@ function tws_admin_init ()
 	register_setting('tws_optiongrousp', 'tws_defaultbannedwords', 'wp_filter_nohtml_kses');
 	register_setting('tws_optiongrousp', 'tws_defaulttwuser', 'wp_filter_nohtml_kses');
 	register_setting('tws_optiongrousp', 'tws_defaultlang', 'wp_filter_nohtml_kses');
+	register_setting('tws_optiongrousp', 'tws_useragent', 'wp_filter_nohtml_kses');
 
 	/**
 	 * Hook into save_post action - save our data at the same time the post is saved
@@ -96,7 +97,6 @@ function tws_optionsdo ()
 			<?php settings_fields('tws_optiongrousp'); ?>
 			<?php $op = get_option('tws_defaultbannedwords'); ?>
 			<?php $twuname = get_option('tws_defaulttwuser'); ?>
-			<?php $tw_lang = get_option('tws_defaultlang'); ?>
 			<fieldset>
 				<p class="meta_options">
 					<label for="tws_defaulttwuser">Select the default Twitter username.<br />
@@ -112,7 +112,13 @@ function tws_optionsdo ()
 
 				<p class="meta_options">
 					<label for="tws_defaultlang">Language: (ISO 639-1) code<br/>
-						<input type="text" name="tws_defaultlang" value="<?=$tw_lang?>" />
+						<input type="text" name="tws_defaultlang" value="<?=get_option('tws_defaultlang')?>" />
+					</label>
+				</p>
+
+				<p class="meta_options">
+					<label>Twitter requires an email to they be able to report abuses<br />
+						<input type="text" name="tws_useragent" value="<?=get_option('tws_useragent')?>">
 					</label>
 				</p>
 				
@@ -309,7 +315,8 @@ if ( ! function_exists('get_twitter_search'))
 			'type' => get_post_meta($post_id, '_tws_tltype', TRUE),
 			'user' => get_post_meta($post_id, '_tws_twuser', TRUE),
 			'list' => get_post_meta($post_id, '_tws_twulist', TRUE),
-			'lang' => get_option('tws_defaultlang')
+			'lang' => get_option('tws_defaultlang'),
+			'user-agent' => get_option('tws_useragent')
 		);
 
 
@@ -327,7 +334,7 @@ if ( ! function_exists('get_twitter_search'))
 		 */
 		require_once ('TwitterSearchClass.php');
 		$TW = new TwitterSearch();
-		$TW->user_agent = 'magrio.ag@gmail.com';
+		$TW->user_agent = $configs['user-agent'];
 
 
 		/**
