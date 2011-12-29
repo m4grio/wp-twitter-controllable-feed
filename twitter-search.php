@@ -276,6 +276,13 @@ if ( ! function_exists('get_twitter_search'))
 	{
 
 
+		/**
+		 * Check for cURL extension
+		 */
+		if ( ! in_array('curl', get_loaded_extensions()))
+			throw new Exception('cURL not installed', 1);
+			
+
 		global $wpdb;
 
 
