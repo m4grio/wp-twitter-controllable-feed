@@ -98,25 +98,25 @@ function tws_optionsdo ()
 			<fieldset>
 				<p class="meta_options">
 					<label for="tws_defaulttwuser">Select the default Twitter username.<br />
-						<input type="text" name="tws_defaulttwuser" value="<?=get_option('tws_defaulttwuser')?>">
+						<input type="text" name="tws_defaulttwuser" value="<?php echo get_option('tws_defaulttwuser')?>">
 					</label>
 				</p>
 				
 				<p class="meta_options">
 					<label for="tws_defaulbannedwords">Default banned words, also you can append more words in each post. Insert words comma separated.<br />
-						<textarea name="tws_defaultbannedwords" cols="70"><?=get_option('tws_defaultbannedwords')?></textarea>
+						<textarea name="tws_defaultbannedwords" cols="70"><?php echo get_option('tws_defaultbannedwords')?></textarea>
 					</label>
 				</p>
 
 				<p class="meta_options">
 					<label for="tws_defaultlang">Language (ISO 639-1 code)<br/>
-						<input type="text" name="tws_defaultlang" value="<?=get_option('tws_defaultlang')?>" />
+						<input type="text" name="tws_defaultlang" value="<?php echo get_option('tws_defaultlang')?>" />
 					</label>
 				</p>
 
 				<p class="meta_options">
 					<label>Twitter requires an email to they be able to report abuses.<br />
-						<input type="text" name="tws_useragent" value="<?=get_option('tws_useragent')?>">
+						<input type="text" name="tws_useragent" value="<?php echo get_option('tws_useragent')?>">
 					</label>
 				</p>
 				
@@ -339,7 +339,13 @@ if ( ! function_exists('get_twitter_search'))
 		 */
 		require_once ('TwitterSearchClass.php');
 		$TW = new TwitterSearch();
-		$TW->user_agent = $configs['user-agent'];
+
+
+		/**
+		 * User-agent
+		 */
+		if (isset($configs['user-agent']))
+			$TW->user_agent = $configs['user-agent'];
 
 
 		/**
@@ -653,6 +659,7 @@ if ( ! function_exists('get_twitter_search'))
 		 */
 		if (isset($limit) && is_numeric($limit) && $limit > 0)
 			return array_slice($tuits, 0, $limit);
+
 
 		/**
 		 * To inifinite and beyond
