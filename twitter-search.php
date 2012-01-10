@@ -244,6 +244,15 @@ jQuery(document).ready(function() {
 function tws_save_post ($post_id)
 {
 
+	if ( ! $post_id)
+	{
+		/**
+		 * Get post ID
+		 */
+		global $wp_query;
+		$post_id = $wp_query->post->ID;
+	}
+
 	// proceed if content in $_POST
 	if (isset($_POST['tws_enabled']))
 		update_post_meta($post_id, '_tws_enabled', $_POST['tws_enabled']);
@@ -280,7 +289,7 @@ if ( ! function_exists('get_twitter_search'))
 		 * Check for cURL extension
 		 */
 		if ( ! in_array('curl', get_loaded_extensions()))
-			throw new Exception('cURL not installed', 1);
+			return array('result'=>FALSE, 'error'=>'cURL not installed.');
 			
 
 		global $wpdb;
@@ -290,20 +299,26 @@ if ( ! function_exists('get_twitter_search'))
 		 * This plugin its supposed to work only on single posts
 		 */
 		if ( ! is_single())
-			return;
+			return array('result'=>FALSE, 'error'=>'Not single.');
 
 
 		/**
 		 * Get post ID
 		 */
-		$post_id = get_the_ID();
+		global $wp_query;
+		$post_id = $wp_query->post->ID;
+
 
 
 		/**
 		 * Check if enabled
 		 */
 		if ( ! $enabled = (bool) get_post_meta($post_id, '_tws_enabled', TRUE))
-			return;
+		{
+			if (WP_DEBUG)
+				tws_debug_();
+			// return array('result'=>FALSE, 'error'=>'Not enabled.');
+		}
 		
 
 		/**
@@ -486,6 +501,17 @@ if ( ! function_exists('get_twitter_search'))
 
 
 		/**
+		 * 
+		 */
+		if (empty($tuits))
+		{
+			if (WP_DEBUG)
+				tws_debug_('No results from Twitter');
+
+		}
+
+
+		/**
 		 * Check for request status or empty response to know if cache will be needed
 		 */
 		// if (true)
@@ -518,7 +544,7 @@ if ( ! function_exists('get_twitter_search'))
 					/**
 					 * Just in case...
 					 */
-					if (strpos($configs['search'], ','))
+					if ( ! is_array($configs['search']) && strpos($configs['search'], ','))
 						$configs['search'] = explode(',', $configs['search']);
 
 					/**
@@ -528,14 +554,14 @@ if ( ! function_exists('get_twitter_search'))
 					{
 						
 						foreach ($configs['search'] as $word)
-							$_like[] = "`search_query` like '%'" . mysql_real_escape_string($word) . '%';
+							$_like[] = "`search_query` like '%" . mysql_real_escape_string($word) . "%'";
 
 						$query .= implode(' or ', $_like);
 					}
 
 
 					else if (is_string($configs['search']))
-						$query .= "`search_query` like '%$configs[search]%";
+						$query .= "`search_query` like '%$configs[search]%'";
 
 					break;
 
@@ -598,6 +624,14 @@ if ( ! function_exists('get_twitter_search'))
 				foreach ($results as $row)
 					$tuits[] = json_decode(base64_decode($row));
 			}
+
+			else
+			{
+				if (WP_DEBUG)
+					tws_debug_('No results from DB');
+
+				$tuits = NULL;
+			}
 		}
 
 
@@ -643,28 +677,48 @@ if ( ! function_exists('get_twitter_search'))
 
 				// $tuit->text = ereg_replace("[[:alpha:]]+://[^<>[:space:]]+[[:alnum:]/]", "<a href=\"\\0\" rel=\"nofollow\">\\0</a>", $tuit->text);
 			}
+
+			// if (isset($_junk) && count($_junk) > 0)
+			// {
+			// 	echo 'junk';
+			// 	return $_junk;
+			// }
+
+
+			/**
+			 * To limit!
+			 */
+			if (isset($limit) && is_numeric($limit) && $limit > 0)
+				return array_slice($tuits, 0, $limit);
+
+
+			/**
+			 * To inifinite and beyond
+			 */
+			return $tuits;
+
+		}
+
+
+		else
+		{
+			if (WP_DEBUG)
+				tws_debug_('No results');
 		}
 
 
 
-		// if (isset($_junk) && count($_junk) > 0)
-		// {
-		// 	echo 'junk';
-		// 	return $_junk;
-		// }
-
-
-		/**
-		 * To limit!
-		 */
-		if (isset($limit) && is_numeric($limit) && $limit > 0)
-			return array_slice($tuits, 0, $limit);
-
-
-		/**
-		 * To inifinite and beyond
-		 */
-		return $tuits;
-
 	}
+}
+
+
+function tws_debug_ ($message)
+{
+	$backtrace = debug_backtrace();
+	$backtrace = $backtrace[0];
+	
+	echo PHP_EOL . "<p>$message" . 
+		($backtrace['file'] ? " on <strong>$backtrace[file]</strong>" : NULL) . 
+		($backtrace['line'] ? ", at <strong>line $backtrace[line]</strong>" : NULL) .
+		'</p>';
 }
