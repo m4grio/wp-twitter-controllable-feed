@@ -315,9 +315,8 @@ if ( ! function_exists('get_twitter_search'))
 		 */
 		if ( ! $enabled = (bool) get_post_meta($post_id, '_tws_enabled', TRUE))
 		{
-			if (WP_DEBUG)
-				tws_debug_();
-			// return array('result'=>FALSE, 'error'=>'Not enabled.');
+			tws_debug_('Not enabled on this post');
+			return;
 		}
 		
 
@@ -391,10 +390,10 @@ if ( ! function_exists('get_twitter_search'))
 				 */
 				if (is_array($configs['search']))
 					foreach ($configs['search'] as $key => $term)
-						$TW->contains($term);
+						$TW->contains(strtolower($term));
 
 				else if (is_string($configs['search']))
-					$TW->contains($configs['search']);
+					$TW->contains(strtolower($configs['search']));
 
 				break;
 
@@ -504,11 +503,7 @@ if ( ! function_exists('get_twitter_search'))
 		 * 
 		 */
 		if (empty($tuits))
-		{
-			if (WP_DEBUG)
-				tws_debug_('No results from Twitter');
-
-		}
+			tws_debug_('No results from Twitter');
 
 
 		/**
@@ -627,9 +622,7 @@ if ( ! function_exists('get_twitter_search'))
 
 			else
 			{
-				if (WP_DEBUG)
-					tws_debug_('No results from DB');
-
+				tws_debug_('No results from DB');
 				$tuits = NULL;
 			}
 		}
@@ -701,10 +694,7 @@ if ( ! function_exists('get_twitter_search'))
 
 
 		else
-		{
-			if (WP_DEBUG)
-				tws_debug_('No results');
-		}
+			tws_debug_('No results');
 
 
 
@@ -714,6 +704,9 @@ if ( ! function_exists('get_twitter_search'))
 
 function tws_debug_ ($message)
 {
+	if ( ! defined('WP_DEBUG') || ! WP_DEBUG)
+		return;
+
 	$backtrace = debug_backtrace();
 	$backtrace = $backtrace[0];
 	
