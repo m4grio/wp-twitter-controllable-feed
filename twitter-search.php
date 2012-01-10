@@ -3,7 +3,7 @@
 Plugin Name: Twitter Feed
 Plugin URI: http://carling.otherlocker.info/
 Description: Used by millions, Twitter Search is quite possibly the best way in the world to <strong>search on Twitter</strong>.
-Version: 0.0.0.0.0.0.3
+Version: 0.999
 Author: Mario Alvarez
 Author URI: http://dsafasd.com
 License: WTFPL :p
