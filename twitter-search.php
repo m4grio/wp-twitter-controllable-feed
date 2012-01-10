@@ -34,11 +34,12 @@ function tws_install ()
 	$table_name = $wpdb->prefix . TWS_TABLENAME;
 	  
 	$sql = "CREATE TABLE " . $table_name . " (
-		`id_tws_cache` int(11) unsigned NOT NULL AUTO_INCREMENT PRIMARY KEY,
-		`data` text NOT NULL,
-		`text` varchar(140) NOT NULL,
-		`served` int(9) unsigned NOT NULL,
-		`date_add` timestamp NOT NULL
+		`id_tws_cache` varchar(25) collate utf8_unicode_ci NOT NULL,
+		`data` text collate utf8_unicode_ci NOT NULL,
+		`text` varchar(140) collate utf8_unicode_ci NOT NULL,
+		`search_query` text collate utf8_unicode_ci,
+		`from_user` varchar(29) collate utf8_unicode_ci default NULL,
+		`date_add` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP
 	) comment = 'Twitter Feed cache data';";
 
 
