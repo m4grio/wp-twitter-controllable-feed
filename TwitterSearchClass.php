@@ -7,7 +7,10 @@
  * @version 0.2
  * @package PHPTwitterSearch
  */
-class TwitterSearch {
+
+class TwitterSearch
+{
+
     /**
      * Can be set to JSON (requires PHP 5.2 or the json pecl module) or XML - json|xml
      * @var string
@@ -192,7 +195,12 @@ class TwitterSearch {
     * @param $reset_query boolean optional.
     * @return object
     */
-    function results($reset_query=true) {
+    function results($reset_query=true)
+    {
+
+        if ($this->apriori_results)
+            return $this->apriori_results;
+
         $request  = 'http://search.twitter.com/search.'.$this->type;
         $request .= '?q='.urlencode($this->query);
         
@@ -231,12 +239,27 @@ class TwitterSearch {
     * Returns the top ten queries that are currently trending on Twitter.
     * @return object
     */
-    function trends() {
-        $request  = 'http://search.twitter.com/trends.json';
-        
-        return $this->objectify($this->process($request));
+    function trends ()
+    {
+        return $this->objectify($this->process('http://search.twitter.com/trends.json'));
+    }
+
+
+    /**
+     * Favs
+     * Get the last 20 favs from user
+     * @param string $user Required. Screen name.
+     * @param int $since Optional. Returns results with an ID greater than (that is, more recent than) the specified ID. 
+     * @see https://dev.twitter.com/docs/api/1/get/favorites#api-param-since_id
+     * @return Object
+     */
+    function favorites ($user, $since=NULL)
+    {
+        $this->apriori_results = $this->objectify($this->process("https://api.twitter.com/1/favorites.json?id=${user}"));
     }
     
+
+
     /**
      * Internal function where all the juicy curl fun takes place
      * this should not be called by anything external unless you are

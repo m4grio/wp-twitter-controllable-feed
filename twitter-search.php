@@ -9,6 +9,14 @@ Author URI: http://dsafasd.com
 License: WTFPL :p
 */
 
+/**
+ * Protection 
+ * 
+ * This string of code will prevent hacks from accessing the file directly.
+ */
+defined('ABSPATH') or die("Cannot access pages directly.");
+
+
 define ('TWS_TABLENAME', 'tws_cache');
 
 
@@ -17,6 +25,13 @@ define ('TWS_TABLENAME', 'tws_cache');
  */
 add_action('admin_init', 'tws_admin_init');
 add_action('admin_menu', 'tws_add_option');
+
+
+/**
+ * Initialize le widget!
+ */
+add_action('plugins_loaded', 'widget_twitter_search_init');
+
 
 
 /**
@@ -29,27 +44,66 @@ function tws_install ()
 	global $wpdb;
 	global $tws_db_version;
 
-	$tws_db_version = '1';
 
+	require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
+
+
+	/**
+	 * Metadata of table
+	 */
+	$tws_db_version = 1.2;
 	$table_name = $wpdb->prefix . TWS_TABLENAME;
-	  
-	$sql = "CREATE TABLE " . $table_name . " (
-		`id_tws_cache` varchar(25) collate utf8_unicode_ci NOT NULL,
-		`data` text collate utf8_unicode_ci NOT NULL,
-		`text` varchar(140) collate utf8_unicode_ci NOT NULL,
-		`search_query` text collate utf8_unicode_ci,
-		`from_user` varchar(29) collate utf8_unicode_ci default NULL,
-		`date_add` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP
-	) comment = 'Twitter Feed cache data';";
 
 
-	if ( ! (bool) $wpdb->get_var("show tables like $table_name"))
+	/**
+	 * Get current db version
+	 */
+	$current_db = (float) get_option('_tws_db_version');
+	// var_dump($current_db);
+	// die($current_db);
+
+
+	/**
+	 * If installed is not the actual version lets check for upgrades
+	 */
+	if ($current_db <= $tws_db_version)
 	{
-		require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
-		dbDelta($sql);
+
+		
+		/**
+		 * From 1.0
+		 */
+		if ($current_db == 1)
+		{
+			update_option('_tws_db_version', $tws_db_version);
+			mysql_query("ALTER TABLE `$table_name`
+				ADD `is_fav` tinyint(1) unsigned NULL DEFAULT '0' AFTER `from_user`");
+		}
 	}
 
-	add_option("tws_db_version", $tws_db_version);
+
+	/**
+	 * The dable doesn't exists, lets create
+	 */
+	if ( ! (bool) $current_db)
+	{
+		
+		dbDelta("CREATE TABLE " . $table_name . " (
+			`id_tws_cache` varchar(25) collate utf8_unicode_ci NOT NULL,
+			`data` text collate utf8_unicode_ci NOT NULL,
+			`text` varchar(140) collate utf8_unicode_ci NOT NULL,
+			`search_query` text collate utf8_unicode_ci,
+			`from_user` varchar(29) collate utf8_unicode_ci default NULL,
+			`is_fav` tinyint(1) unsigned DEFAULT '0',
+			`date_add` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP
+		) comment = 'Twitter Feed cache data';");
+		add_option('_tws_db_version', $tws_db_version);
+	}
+
+
+
+
+	
 
 }
 
@@ -72,6 +126,15 @@ function tws_admin_init ()
 	 * Hook into save_post action - save our data at the same time the post is saved
 	 */
 	add_action('save_post','tws_save_post');
+
+
+	/**
+	 * The widget!
+	 */
+	// add_action('widgets_init', create_function('', 'register_widget("TWS_Widget");'));
+	// wp_register_sidebar_widget('_tws_osom_widget', 'Twitter Feed', '_get_tws_widget', array(
+	// 	'description' => 'The Twitter Feed, widgetified'
+	// ));
 }
 
 
@@ -145,6 +208,7 @@ function tws_meta_box ($post, $box)
 	$timelineType 	= get_post_meta($post->ID, '_tws_tltype', TRUE);
 	$twUser 		= get_post_meta($post->ID, '_tws_twuser', TRUE);
 	$twUList		= get_post_meta($post->ID, '_tws_twulist', TRUE);
+	$useFavs		= get_post_meta($post->ID, '_tws_usefavs', TRUE);
 
 	// meta-bax form element
 	echo "
@@ -213,13 +277,22 @@ jQuery(document).ready(function() {
 		</div>
 		
 		<div id="tws_user-timeline" ' . ($timelineType == 'user-timeline' ? '' : 'class="hidden"') . '>
+
 			<p class="meta_options">
 				<label>Usuario de Twitter:</label><br />
 				<input type="text" name="tws_twuser" id="tws_twuser" value="' . $twUser . '">
-				
-				<br />
-				<label>Utilizar el usuario default <span>' . get_option('tws_defaulttwuser') . '</span></label>
-				<input type="checkbox" name="useDefaulUser" id="useDefaulUser" value="1" /><br />
+			</p>
+			
+			<p class="meta_options">
+				<label>
+					<input type="checkbox" name="useDefaulUser" id="useDefaulUser" value="1" />Utilizar el usuario default <span>' . get_option('tws_defaulttwuser') . '</span>
+				</label>
+			</p>
+
+			<p class="meta_options">
+				<label>
+					<input type="checkbox" name="tws_usefavs" id="tws_usefavs" value="1" ' . ($useFavs ? 'checked="checked"' : NULL) . ' />Only favorites <strong>(WARNING: this option have a 20 tweets limit)</strong>
+				</label>
 			</p>
 
 			<p class="meta_options">
@@ -273,6 +346,11 @@ function tws_save_post ($post_id)
 	if (isset($_POST['tws_twulist']))
 		update_post_meta($post_id, '_tws_twulist', $_POST['tws_twulist']);
 
+	if (isset($_POST['tws_usefavs']))
+		update_post_meta($post_id, '_tws_usefavs', $_POST['tws_usefavs']);
+	else
+		update_post_meta($post_id, '_tws_usefavs', '0');
+
 }
 
 
@@ -316,7 +394,7 @@ if ( ! function_exists('get_twitter_search'))
 		 */
 		if ( ! $enabled = (bool) get_post_meta($post_id, '_tws_enabled', TRUE))
 		{
-			tws_debug_('Not enabled on this post');
+			_tws_debug('Not enabled on this post');
 			return;
 		}
 		
@@ -335,6 +413,7 @@ if ( ! function_exists('get_twitter_search'))
 			'type' => get_post_meta($post_id, '_tws_tltype', TRUE),
 			'user' => get_post_meta($post_id, '_tws_twuser', TRUE),
 			'list' => get_post_meta($post_id, '_tws_twulist', TRUE),
+			'usefavs' => get_post_meta($post_id, '_tws_usefavs', TRUE),
 			'lang' => get_option('tws_defaultlang'),
 			'user-agent' => get_option('tws_useragent')
 		);
@@ -412,7 +491,11 @@ if ( ! function_exists('get_twitter_search'))
 				/**
 				 * Prepare the twitter query!
 				 */
-				$TW->from($configs['user']);
+				if ((bool) $configs['usefavs'])
+					$TW->favorites($configs['user']);
+
+				else
+					$TW->from($configs['user']);
 
 
 				/**
@@ -474,10 +557,10 @@ if ( ! function_exists('get_twitter_search'))
 				case 'user-timeline':
 
 					foreach ($tuits as $tuit)
-						$_row[] = "('$tuit->id_str', '" . base64_encode(json_encode($tuit)) . "', '" . mysql_real_escape_string($tuit->text) . "', '" . $configs['user'] . "')";
+						$_row[] = "('$tuit->id_str', '" . base64_encode(json_encode($tuit)) . "', '" . mysql_real_escape_string($tuit->text) . "', '" . $configs['user'] . "', '" . intval($configs['usefavs']) . "')";
 
 					$_query = "INSERT IGNORE INTO " . $wpdb->prefix . TWS_TABLENAME . "
-						(`id_tws_cache`, `data`, `text`, `from_user`) VALUES 
+						(`id_tws_cache`, `data`, `text`, `from_user`, `is_fav`) VALUES 
 						" . implode(", \n", $_row) . "
 						ON DUPLICATE KEY UPDATE
 							`data` =         VALUES(`data`),
@@ -490,7 +573,7 @@ if ( ! function_exists('get_twitter_search'))
 			}
 
 
-			// die ($_query);
+			return $_query;
 
 			/**
 			 * Silent run
@@ -504,7 +587,7 @@ if ( ! function_exists('get_twitter_search'))
 		 * 
 		 */
 		if (empty($tuits))
-			tws_debug_('No results from Twitter');
+			_tws_debug('No results from Twitter');
 
 
 		/**
@@ -623,7 +706,7 @@ if ( ! function_exists('get_twitter_search'))
 
 			else
 			{
-				tws_debug_('No results from DB');
+				_tws_debug('No results from DB');
 				$tuits = NULL;
 			}
 		}
@@ -695,7 +778,7 @@ if ( ! function_exists('get_twitter_search'))
 
 
 		else
-			tws_debug_('No results');
+			_tws_debug('No results');
 
 
 
@@ -703,7 +786,7 @@ if ( ! function_exists('get_twitter_search'))
 }
 
 
-function tws_debug_ ($message)
+function _tws_debug ($message)
 {
 	if ( ! defined('WP_DEBUG') || ! WP_DEBUG)
 		return;
